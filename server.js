@@ -142,13 +142,13 @@ app.post("/api/:service", async (req, res) => {
 
             // Optional: Map language to a voice
             const voiceMap = {
-                "anglais": "shimmer",
-                "français": "echo", // Non ufficiale, vedi elenco reale sotto
-                "espagnol": "onyx"
+                "anglais": "nova",
+                "français": "fable",
+                "espagnol": "fable"
             };
 
             const cleanLanguage = selectedLanguage ? selectedLanguage.trim().toLowerCase() : "";
-            const voice = voiceMap[cleanLanguage] || "shimmer";
+            const voice = voiceMap[cleanLanguage] || "fable";
 
             console.log("Using voice:", voice);
 
