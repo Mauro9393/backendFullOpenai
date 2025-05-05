@@ -316,9 +316,6 @@ app.post("/api/:service", upload.single("audio"), async (req, res) => {
     }
 });
 
-
-
-
 // Secure endpoint to obtain a temporary Azure Speech token.
 app.get("/get-azure-token", async (req, res) => {
     const apiKey = process.env.AZURE_SPEECH_API_KEY;
