@@ -155,8 +155,7 @@ app.post("/api/:service", async (req, res) => {
             const requestData = {
                 model: "tts-1",
                 input: text,
-                voice: voice,
-                response_format: "wav"
+                voice: voice
             };
 
             try {
