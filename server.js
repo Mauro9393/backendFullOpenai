@@ -68,7 +68,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
         console.log("🔹 Dati ricevuti:", JSON.stringify(req.body));
         let apiKey, apiUrl;
 
-        /*if (service === "openaiSimulateur") {
+        if (service === "azureOpenaiSimulateur") {
             const apiKey = process.env.AZURE_OPENAI_KEY_SIMULATEUR;
             const endpoint = process.env.AZURE_OPENAI_ENDPOINT_SIMULATEUR;
             const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_SIMULATEUR;
@@ -102,7 +102,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
 
             return;
         }
-        if (service === "openaiSimulateur") {
+        /*else if (service === "openaiSimulateur") {
             apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
             apiUrl = "https://api.openai.com/v1/chat/completions";
 
@@ -135,7 +135,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
 
             return; // Stop execution here to avoid sending further responses
 
-        }*/if (service === "openaiSimulateur") {
+        }*/else if (service === "openaiSimulateur") {
             // 1) Prepara la connessione SSE
             res.setHeader("Content-Type", "text/event-stream");
             res.setHeader("Cache-Control", "no-cache");
@@ -180,12 +180,12 @@ app.post("/api/:service", upload.none(), async (req, res) => {
 
             //Map language to a voice
             const allowedVoices = [
-                "alloy",
-                "echo",
-                "fable",
-                "onyx",
-                "nova",
-                "shimmer"
+                "alloy", // female
+                "echo",  // male
+                "fable", // female
+                "onyx",  // male
+                "nova",  // female
+                "shimmer" //female
             ];
 
             const cleanVoice = selectedVoice ? selectedVoice.trim().toLowerCase() : "";
@@ -223,6 +223,78 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 } else {
                     console.error("Unknown OpenAI TTS error:", error.message);
                     return res.status(500).json({ error: "Unknown OpenAI TTS error" });
+                }
+            }
+        }else if (service === "elevenlabs") {
+            apiKey = process.env.ELEVENLAB_API_KEY;
+
+            if (!apiKey) {
+                console.error("ElevenLabs API key missing!");
+                return res.status(500).json({ error: "ElevenLabs API key missing" });
+            }
+
+            const { text, selectedLanguage } = req.body; // The frontend must pass this data
+            console.log("Language received from frontend:", selectedLanguage);
+
+            // Let's move `voiceMap` above `voiceId`
+            const voiceMap = {
+                "espagnol": "l1zE9xgNpUTaQCZzpNJa",
+                "français": "1a3lMdKLUcfcMtvN772u",
+                "anglais": "7tRwuZTD1EWi6nydVerp"
+            };
+
+            const cleanLanguage = selectedLanguage ? selectedLanguage.trim().toLowerCase() : "";
+            console.log("Clean language:", cleanLanguage);
+
+            const voiceId = voiceMap[cleanLanguage];
+
+            if (!voiceId) {
+                console.error(`Not supported language: ${cleanLanguage}`);
+                return res.status(400).json({ error: "Not supported language" });
+            }
+
+            console.log(`Selected Voice ID: ${voiceId}`);
+
+            apiUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`;
+
+            const requestData = {
+                text: text,
+                model_id: "eleven_flash_v2_5",
+                voice_settings: {
+                    stability: 0.6,
+                    similarity_boost: 0.7,
+                    style: 0.1
+                }
+            };
+
+            console.log("Data sent to ElevenLabs:", requestData);
+
+            try {
+                const response = await axios.post(apiUrl, requestData, {
+                    headers: {
+                        "xi-api-key": apiKey,
+                        "Content-Type": "application/json"
+                    },
+                    responseType: "arraybuffer" // To return the audio as a file
+                });
+
+                console.log("Audio received from ElevenLabs!");
+                res.setHeader("Content-Type", "audio/mpeg");
+                return res.send(response.data);
+
+            } catch (error) {
+                if (error.response) {
+                    try {
+                        const errorMessage = error.response.data.toString(); // Decode the buffer into text
+                        console.error("❌ Error with ElevenLabs:", errorMessage);
+                        res.status(error.response.status).json({ error: errorMessage });
+                    } catch (decodeError) {
+                        console.error("❌ Error with ElevenLabs (not decodable):", error.response.data);
+                        res.status(error.response.status).json({ error: "Unknown error with ElevenLabs" });
+                    }
+                } else {
+                    console.error("Unknown error with ElevenLabs:", error.message);
+                    res.status(500).json({ error: "Unknown error with ElevenLabs" });
                 }
             }
         }
