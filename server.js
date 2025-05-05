@@ -126,86 +126,73 @@ app.post("/api/:service", async (req, res) => {
             res.write("data: [DONE]\n\n");
             return res.end();
         }
-        else if (service === "elevenlabs") {
-            apiKey = process.env.ELEVENLAB_API_KEY;
+        else if (service === "openai-tts") {
+            const apiKey = process.env.OPENAI_API_KEY;
 
             if (!apiKey) {
-                console.error("ElevenLabs API key missing!");
-                return res.status(500).json({ error: "ElevenLabs API key missing" });
+                console.error("OpenAI API key missing!");
+                return res.status(500).json({ error: "OpenAI API key missing" });
             }
 
-            const { text, selectedLanguage } = req.body; // The frontend must pass this data
-            console.log("Language received from frontend:", selectedLanguage);
+            const { text, selectedLanguage } = req.body;
 
-            // Let's move `voiceMap` above `voiceId`
+            if (!text) {
+                return res.status(400).json({ error: "Text is required" });
+            }
+
+            // Optional: Map language to a voice
             const voiceMap = {
-                "espagnol": "l1zE9xgNpUTaQCZzpNJa",
-                "français": "1a3lMdKLUcfcMtvN772u",
-                "anglais": "7tRwuZTD1EWi6nydVerp"
+                "anglais": "shimmer",
+                "français": "echo", // Non ufficiale, vedi elenco reale sotto
+                "espagnol": "onyx"
             };
 
             const cleanLanguage = selectedLanguage ? selectedLanguage.trim().toLowerCase() : "";
-            console.log("Clean language:", cleanLanguage);
+            const voice = voiceMap[cleanLanguage] || "shimmer";
 
-            const voiceId = voiceMap[cleanLanguage];
-
-            if (!voiceId) {
-                console.error(`Not supported language: ${cleanLanguage}`);
-                return res.status(400).json({ error: "Not supported language" });
-            }
-
-            console.log(`Selected Voice ID: ${voiceId}`);
-
-            apiUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`;
+            console.log("Using voice:", voice);
 
             const requestData = {
-                text: text,
-                model_id: "eleven_flash_v2_5",
-                voice_settings: {
-                    stability: 0.6,
-                    similarity_boost: 0.7,
-                    style: 0.1
-                }
+                model: "tts-1", // oppure "tts-1-hd"
+                input: text,
+                voice: voice
             };
 
-            console.log("Data sent to ElevenLabs:", requestData);
-
             try {
-                const response = await axios.post(apiUrl, requestData, {
-                    headers: {
-                        "xi-api-key": apiKey,
-                        "Content-Type": "application/json"
-                    },
-                    responseType: "arraybuffer" // To return the audio as a file
-                });
+                const response = await axios.post(
+                    "https://api.openai.com/v1/audio/speech",
+                    requestData,
+                    {
+                        headers: {
+                            "Authorization": `Bearer ${apiKey}`,
+                            "Content-Type": "application/json"
+                        },
+                        responseType: "arraybuffer" // Per ricevere l'audio come buffer
+                    }
+                );
 
-                console.log("Audio received from ElevenLabs!");
+                console.log("Audio received from OpenAI!");
                 res.setHeader("Content-Type", "audio/mpeg");
                 return res.send(response.data);
 
             } catch (error) {
                 if (error.response) {
-                    try {
-                        const errorMessage = error.response.data.toString(); // Decode the buffer into text
-                        console.error("❌ Error with ElevenLabs:", errorMessage);
-                        res.status(error.response.status).json({ error: errorMessage });
-                    } catch (decodeError) {
-                        console.error("❌ Error with ElevenLabs (not decodable):", error.response.data);
-                        res.status(error.response.status).json({ error: "Unknown error with ElevenLabs" });
-                    }
+                    console.error("OpenAI TTS error:", error.response.data);
+                    return res.status(error.response.status).json({ error: error.response.data });
                 } else {
-                    console.error("Unknown error with ElevenLabs:", error.message);
-                    res.status(500).json({ error: "Unknown error with ElevenLabs" });
+                    console.error("Unknown OpenAI TTS error:", error.message);
+                    return res.status(500).json({ error: "Unknown OpenAI TTS error" });
                 }
             }
-        }else if (service === "openaiAnalyse") {
+        }
+        else if (service === "openaiAnalyse") {
             // 1️⃣ Prepara headers SSE
             res.setHeader("Content-Type", "text/event-stream");
             res.setHeader("Cache-Control", "no-cache");
             res.setHeader("Connection", "keep-alive");
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.flushHeaders(); // forza l’invio immediato degli header
-        
+
             try {
                 // 2️⃣ Avvia lo stream con OpenAI
                 const stream = await openai.chat.completions.create({
@@ -213,7 +200,7 @@ app.post("/api/:service", async (req, res) => {
                     messages: req.body.messages,
                     stream: true
                 });
-        
+
                 // 3️⃣ Inoltra i delta al browser in tempo reale
                 for await (const part of stream) {
                     const delta = part.choices?.[0]?.delta?.content;
@@ -221,11 +208,11 @@ app.post("/api/:service", async (req, res) => {
                         res.write(`data: ${JSON.stringify({ delta })}\n\n`);
                     }
                 }
-        
+
                 // 4️⃣ Chiudi correttamente il flusso
                 res.write("data: [DONE]\n\n");
                 res.end();
-        
+
             } catch (error) {
                 console.error("❌ Errore nello stream openaiAnalyse:", error.message);
                 res.write(`data: ${JSON.stringify({ error: "Errore durante lo streaming AI." })}\n\n`);
