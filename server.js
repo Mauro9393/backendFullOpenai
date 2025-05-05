@@ -153,9 +153,10 @@ app.post("/api/:service", async (req, res) => {
             console.log("Using voice:", voice);
 
             const requestData = {
-                model: "tts-1", // oppure "tts-1-hd"
+                model: "tts-1",
                 input: text,
-                voice: voice
+                voice: voice,
+                response_format: "wav"
             };
 
             try {
