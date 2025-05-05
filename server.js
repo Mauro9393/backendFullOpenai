@@ -26,7 +26,7 @@ const axiosInstance = axios.create({
 });
 
 // Endpoint to call different APIs chatbot and elevenlab
-app.post("/api/:service", async (req, res) => {
+app.post("/api/:service", upload.single("audio"), async (req, res) => {
     try {
         const { service } = req.params;
         console.log("🔹 Servizio ricevuto:", service);
@@ -268,7 +268,39 @@ app.post("/api/:service", async (req, res) => {
                     return res.status(500).json({ error: "Errore interno Azure Analyse" });
                 }
             }
-        }*/
+        }*/else if (service === "transcribe") {
+            if (!req.file) {
+                return res.status(400).json({ error: "No audio file uploaded" });
+            }
+
+            const apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
+            if (!apiKey) {
+                return res.status(500).json({ error: "OpenAI API key missing" });
+            }
+
+            try {
+                const form = new FormData();
+                form.append("file", req.file.buffer, { filename: req.file.originalname });
+                form.append("model", "whisper-1");
+
+                const response = await axios.post(
+                    "https://api.openai.com/v1/audio/transcriptions",
+                    form,
+                    {
+                        headers: {
+                            ...form.getHeaders(),
+                            "Authorization": `Bearer ${apiKey}`
+                        }
+                    }
+                );
+
+                return res.json(response.data);
+
+            } catch (err) {
+                console.error("Whisper transcription error:", err.response?.data || err.message);
+                return res.status(500).json({ error: "Transcription failed" });
+            }
+        }
         else {
             return res.status(400).json({ error: "Invalid service" });
         }
@@ -281,47 +313,6 @@ app.post("/api/:service", async (req, res) => {
 
         console.error(`API error ${req.params.service}:`, error.response?.data || error.message);
         res.status(500).json({ error: "API request error" });
-    }
-});
-
-
-// Endpoint per trascrivere con OpenAI Whisper
-app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
-    const apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
-    if (!apiKey) {
-        return res.status(500).json({ error: "OpenAI API key missing" });
-    }
-
-    if (!req.file) {
-        return res.status(400).json({ error: "No audio file uploaded" });
-    }
-
-    try {
-        // Costruisci il form-data
-        const form = new FormData();
-        form.append("file", req.file.buffer, { filename: req.file.originalname });
-        form.append("model", "whisper-1");
-        // Opzionali: lingua fissa
-        // form.append("language", "it");
-
-        // Chiamata a OpenAI
-        const response = await axios.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            form,
-            {
-                headers: {
-                    ...form.getHeaders(),
-                    "Authorization": `Bearer ${apiKey}`
-                }
-            }
-        );
-
-        // mappa direttamente il JSON di Whisper
-        return res.json(response.data);
-
-    } catch (err) {
-        console.error("Whisper transcription error:", err.response?.data || err.message);
-        return res.status(500).json({ error: "Transcription failed" });
     }
 });
 
