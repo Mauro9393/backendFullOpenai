@@ -53,10 +53,10 @@ app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
         return res.json(response.data);
 
     } catch (err) {
-        // Stampa l’errore completo per debug
-        console.error("❌ Whisper transcription error:",
-            err.response?.data || err.message, "\n", err.stack);
-        return res.status(500).json({ error: "Transcription failed", details: err.response?.data });
+        const details = err.response?.data || err.message;
+        console.error("❌ Whisper transcription error details:", details);
+        return res.status(err.response?.status || 500)
+            .json({ error: "Transcription failed", details });
     }
 });
 
