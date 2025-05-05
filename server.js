@@ -127,7 +127,7 @@ app.post("/api/:service", async (req, res) => {
             return res.end();
         }
         else if (service === "openai-tts") {
-            const apiKey = process.env.OPENAI_API_KEY;
+            const apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
 
             if (!apiKey) {
                 console.error("OpenAI API key missing!");
