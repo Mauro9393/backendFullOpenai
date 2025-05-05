@@ -25,6 +25,27 @@ const axiosInstance = axios.create({
     timeout: API_TIMEOUT // Set the maximum timeout for all requests to OpenAI
 });
 
+async function streamAssistant(assistantId, messages, userId, res) {
+    // 1. thread usa‑e‑getta con i messaggi che gli passi
+    const thread = await openai.beta.threads.create({ messages });
+
+    // 2. avvia il run dell’assistant in streaming
+    const run = await openai.beta.threads.runs.createAndStream(
+        thread.id,
+        { assistant_id: assistantId, stream: true, user: userId }
+    );
+
+    // 3. inoltra i delta.content come SSE al client
+    for await (const event of run) {
+        const delta = event.data?.delta?.content;
+        if (delta) res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+    }
+
+    // 4. chiudi lo stream
+    res.write("data: [DONE]\n\n");
+    res.end();
+}
+
 // 1️⃣ GESTIONE DELL’ENDPOINT WHISPER in testa
 app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
     // DEBUG: vedi se il file arriva
@@ -298,7 +319,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 }
             }
         } else if (service === "assistantOpenaiAnalyse") {
-            // 1️⃣ Prepara headers SSE
+            // 1️⃣ Header SSE
             res.setHeader("Content-Type", "text/event-stream");
             res.setHeader("Cache-Control", "no-cache");
             res.setHeader("Connection", "keep-alive");
@@ -306,30 +327,16 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             res.flushHeaders();
 
             try {
-                // 2️⃣ Avvia lo streaming verso il tuo Assistant specifico
-                const stream = await openai.assistants.chat.completions.create({
-                    assistant: "asst_z4vVC0dOyHqX7KLApHlLf6gX",
-                    // puoi passare un user ID facoltativo
-                    user: req.body.user || "anonymous",
-                    messages: req.body.messages,
-                    stream: true
-                });
-
-                // 3️⃣ Inoltra i delta.content come SSE
-                for await (const part of stream) {
-                    const delta = part.choices?.[0]?.delta?.content;
-                    if (delta) {
-                        res.write(`data: ${JSON.stringify({ delta })}\n\n`);
-                    }
-                }
-
-                // 4️⃣ Chiudi il flusso
-                res.write("data: [DONE]\n\n");
-                res.end();
-
-            } catch (error) {
-                console.error("❌ Errore nello stream assistantOpenaiAnalyse:", error);
-                res.write(`data: ${JSON.stringify({ error: "Errore durante lo streaming dal tuo Assistant." })}\n\n`);
+                // 2️⃣ Lancia lo streaming tramite la funzione helper
+                await streamAssistant(
+                    "asst_z4vVC0dOyHqX7KLApHlLf6gX",   // ← tuo Assistant ID
+                    req.body.messages,                 // array [{role:"user",content:"…"}, …]
+                    req.body.user || "anonymous",      // opzionale: ID utente
+                    res                                 // risposta SSE da popolare
+                );
+            } catch (err) {
+                console.error("assistantOpenaiAnalyse:", err);
+                res.write(`data: ${JSON.stringify({ error: "Assistant stream error" })}\n\n`);
                 res.end();
             }
         }
