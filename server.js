@@ -3,6 +3,9 @@ const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 const { OpenAI } = require("openai");
+const multer = require("multer");
+const FormData = require("form-data");
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -145,8 +148,8 @@ app.post("/api/:service", async (req, res) => {
                 "alloy",
                 "echo",
                 "fable",
-                "onyx", 
-                "nova",  
+                "onyx",
+                "nova",
                 "shimmer"
             ];
 
@@ -280,6 +283,50 @@ app.post("/api/:service", async (req, res) => {
         res.status(500).json({ error: "API request error" });
     }
 });
+
+
+// Endpoint per trascrivere con OpenAI Whisper
+app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
+    const apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
+    if (!apiKey) {
+        return res.status(500).json({ error: "OpenAI API key missing" });
+    }
+
+    if (!req.file) {
+        return res.status(400).json({ error: "No audio file uploaded" });
+    }
+
+    try {
+        // Costruisci il form-data
+        const form = new FormData();
+        form.append("file", req.file.buffer, { filename: req.file.originalname });
+        form.append("model", "whisper-1");
+        // Opzionali: lingua fissa
+        // form.append("language", "it");
+
+        // Chiamata a OpenAI
+        const response = await axios.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            form,
+            {
+                headers: {
+                    ...form.getHeaders(),
+                    "Authorization": `Bearer ${apiKey}`
+                }
+            }
+        );
+
+        // mappa direttamente il JSON di Whisper
+        return res.json(response.data);
+
+    } catch (err) {
+        console.error("Whisper transcription error:", err.response?.data || err.message);
+        return res.status(500).json({ error: "Transcription failed" });
+    }
+});
+
+
+
 
 // Secure endpoint to obtain a temporary Azure Speech token.
 app.get("/get-azure-token", async (req, res) => {
