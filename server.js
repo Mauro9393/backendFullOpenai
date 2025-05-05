@@ -143,16 +143,11 @@ app.post("/api/:service", async (req, res) => {
             //Map language to a voice
             const allowedVoices = [
                 "alloy",
-                "ash",
-                "ballad",
-                "coral",
                 "echo",
                 "fable",
                 "onyx", 
-                "nova", 
-                "sage", 
-                "shimmer", 
-                "verse"
+                "nova",  
+                "shimmer"
             ];
 
             const cleanVoice = selectedVoice ? selectedVoice.trim().toLowerCase() : "";
