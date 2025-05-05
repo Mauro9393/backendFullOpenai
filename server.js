@@ -155,7 +155,7 @@ app.post("/api/:service", async (req, res) => {
                 "verse"
             ];
 
-            const cleanLanguage = selectedVoice ? selectedVoice.trim().toLowerCase() : "";
+            const cleanVoice = selectedVoice ? selectedVoice.trim().toLowerCase() : "";
             const voice = allowedVoices.includes(cleanVoice) ? cleanVoice : "fable";
 
             console.log("Using voice:", voice);
