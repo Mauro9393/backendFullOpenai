@@ -225,7 +225,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                     return res.status(500).json({ error: "Unknown OpenAI TTS error" });
                 }
             }
-        }else if (service === "elevenlabs") {
+        } else if (service === "elevenlabs") {
             apiKey = process.env.ELEVENLAB_API_KEY;
 
             if (!apiKey) {
@@ -296,6 +296,41 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                     console.error("Unknown error with ElevenLabs:", error.message);
                     res.status(500).json({ error: "Unknown error with ElevenLabs" });
                 }
+            }
+        } else if (service === "assistantOpenaiAnalyse") {
+            // 1️⃣ Prepara headers SSE
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache");
+            res.setHeader("Connection", "keep-alive");
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.flushHeaders();
+
+            try {
+                // 2️⃣ Avvia lo streaming verso il tuo Assistant specifico
+                const stream = await openai.assistants.chat.completions.create({
+                    assistant: "asst_z4vVC0dOyHqX7KLApHlLf6gX",
+                    // puoi passare un user ID facoltativo
+                    user: req.body.user || "anonymous",
+                    messages: req.body.messages,
+                    stream: true
+                });
+
+                // 3️⃣ Inoltra i delta.content come SSE
+                for await (const part of stream) {
+                    const delta = part.choices?.[0]?.delta?.content;
+                    if (delta) {
+                        res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+                    }
+                }
+
+                // 4️⃣ Chiudi il flusso
+                res.write("data: [DONE]\n\n");
+                res.end();
+
+            } catch (error) {
+                console.error("❌ Errore nello stream assistantOpenaiAnalyse:", error);
+                res.write(`data: ${JSON.stringify({ error: "Errore durante lo streaming dal tuo Assistant." })}\n\n`);
+                res.end();
             }
         }
         else if (service === "openaiAnalyse") {
