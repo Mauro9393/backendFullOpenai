@@ -134,21 +134,29 @@ app.post("/api/:service", async (req, res) => {
                 return res.status(500).json({ error: "OpenAI API key missing" });
             }
 
-            const { text, selectedLanguage } = req.body;
+            const { text, selectedVoice } = req.body;
 
             if (!text) {
                 return res.status(400).json({ error: "Text is required" });
             }
 
-            // Optional: Map language to a voice
-            const voiceMap = {
-                "anglais": "nova",
-                "français": "fable",
-                "espagnol": "fable"
-            };
+            //Map language to a voice
+            const allowedVoices = [
+                "alloy",
+                "ash",
+                "ballad",
+                "coral",
+                "echo",
+                "fable",
+                "onyx", 
+                "nova", 
+                "sage", 
+                "shimmer", 
+                "verse"
+            ];
 
-            const cleanLanguage = selectedLanguage ? selectedLanguage.trim().toLowerCase() : "";
-            const voice = voiceMap[cleanLanguage] || "fable";
+            const cleanLanguage = selectedVoice ? selectedVoice.trim().toLowerCase() : "";
+            const voice = allowedVoices.includes(cleanVoice) ? cleanVoice : "fable";
 
             console.log("Using voice:", voice);
 
@@ -167,7 +175,7 @@ app.post("/api/:service", async (req, res) => {
                             "Authorization": `Bearer ${apiKey}`,
                             "Content-Type": "application/json"
                         },
-                        responseType: "arraybuffer" // Per ricevere l'audio come buffer
+                        responseType: "arraybuffer"
                     }
                 );
 
