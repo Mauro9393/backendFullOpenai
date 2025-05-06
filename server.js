@@ -328,7 +328,9 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 // 2️⃣ lancia il run NON‑stream
                 const run = await openai.beta.threads.runs.create(
                     thread.id,
-                    { assistant_id: "asst_z4vVC0dOyHqX7KLApHlLf6gX", user: req.body.user || "anonymous" }
+                    {
+                        assistant_id: "asst_z4vVC0dOyHqX7KLApHlLf6gX"
+                    }
                 );
 
                 // 3️⃣ poll ogni secondo finché non è finito
