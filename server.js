@@ -319,25 +319,37 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 }
             }
         } else if (service === "assistantOpenaiAnalyse") {
-            // 1️⃣ Header SSE
-            res.setHeader("Content-Type", "text/event-stream");
-            res.setHeader("Cache-Control", "no-cache");
-            res.setHeader("Connection", "keep-alive");
-            res.setHeader("Access-Control-Allow-Origin", "*");
-            res.flushHeaders();
-
             try {
-                // 2️⃣ Lancia lo streaming tramite la funzione helper
-                await streamAssistant(
-                    "asst_z4vVC0dOyHqX7KLApHlLf6gX",   // ← tuo Assistant ID
-                    req.body.messages,                 // array [{role:"user",content:"…"}, …]
-                    req.body.user || "anonymous",      // opzionale: ID utente
-                    res                                 // risposta SSE da popolare
+                // 1️⃣ crea un thread usa‑e‑getta
+                const thread = await openai.beta.threads.create({
+                    messages: req.body.messages
+                });
+
+                // 2️⃣ lancia il run NON‑stream
+                const run = await openai.beta.threads.runs.create(
+                    thread.id,
+                    { assistant_id: "asst_z4vVC0dOyHqX7KLApHlLf6gX", user: req.body.user || "anonymous" }
                 );
+
+                // 3️⃣ poll ogni secondo finché non è finito
+                let runStatus;
+                do {
+                    await new Promise(r => setTimeout(r, 1000));
+                    runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+                } while (runStatus.status !== "completed" && runStatus.status !== "failed");
+
+                if (runStatus.status !== "completed") {
+                    return res.status(500).json({ error: "Assistant run failed", details: runStatus.status });
+                }
+
+                // 4️⃣ recupera l’ultima risposta del thread
+                const msgs = await openai.beta.threads.messages.list(thread.id, { limit: 1, order: "desc" });
+                const answer = msgs.data[0]?.content?.[0]?.text?.value ?? "";
+
+                return res.json({ answer });
             } catch (err) {
                 console.error("assistantOpenaiAnalyse:", err);
-                res.write(`data: ${JSON.stringify({ error: "Assistant stream error" })}\n\n`);
-                res.end();
+                return res.status(500).json({ error: "Assistant error", details: err.message });
             }
         }
         else if (service === "openaiAnalyse") {
