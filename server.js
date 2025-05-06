@@ -319,6 +319,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 }
             }
         } else if (service === "assistantOpenaiAnalyse") {
+            assistantId = process.env.OPENAI_ASSISTANTID;
             try {
                 // 1️⃣ crea un thread usa‑e‑getta
                 const thread = await openai.beta.threads.create({
@@ -329,7 +330,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 const run = await openai.beta.threads.runs.create(
                     thread.id,
                     {
-                        assistant_id: "asst_z4vVC0dOyHqX7KLApHlLf6gX"
+                        assistant_id: assistantId
                     }
                 );
 
