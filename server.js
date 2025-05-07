@@ -352,34 +352,54 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             const assistantId = process.env.OPENAI_ASSISTANTID;
 
             try {
-                /* 1️⃣  riusa un thread se lo hai in sessione; qui lo creo sempre */
-                const thread = await openai.beta.threads.create({
-                    messages: req.body.messages        // messaggi iniziali
-                });
+                /* 1️⃣ CREA o RIUSA il thread ------------------------------------ */
+                let thread;
+                const incomingId = req.body.threadId;
 
-                /* 2️⃣  lancio la run IN STREAM */
+                if (incomingId) {
+                    thread = { id: incomingId };
+                    for (const msg of req.body.messages) {
+                        await openai.beta.threads.messages.create(thread.id, msg);
+                    }
+                } else {
+                    thread = await openai.beta.threads.create({ messages: req.body.messages });
+                }
+
+                /* 2️⃣ PREPARA SSE ------------------------------------------------ */
                 res.setHeader("Content-Type", "text/event-stream");
                 res.setHeader("Cache-Control", "no-cache");
                 res.flushHeaders();
 
-                const stream = await openai.beta.threads.runs.createAndStream(
-                    thread.id,
-                    { assistant_id: assistantId, stream: true }   // stream:true è fondamentale
-                );
-
-                /* 3️⃣  inoltro i delta al browser */
-                for await (const event of stream) {
-                    const delta = event.data?.delta?.content;
-                    if (delta) res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+                /* 3️⃣ Invia subito il threadId se nuovo -------------------------- */
+                if (!incomingId) {
+                    res.write(`data: ${JSON.stringify({ threadId: thread.id })}\n\n`);
                 }
 
-                /* 4️⃣  chiudo lo SSE */
+                /* 4️⃣ Lancia la run in streaming -------------------------------- */
+                const stream = await openai.beta.threads.runs.createAndStream(
+                    thread.id,
+                    { assistant_id: assistantId, stream: true }
+                );
+
+                for await (const event of stream) {
+                    const delta = event.data?.delta;          // <‑‑ invia tutto il delta
+                    if (delta) res.write(`data: ${JSON.stringify(delta)}\n\n`);
+                }
+
+                /* 5️⃣ Chiudi lo stream ------------------------------------------ */
                 res.write("data: [DONE]\n\n");
                 return res.end();
 
             } catch (err) {
-                console.error("assistantOpenaiAnalyse:", err);
-                return res.status(500).json({ error: "Assistant error", details: err.message });
+                console.error("assistantOpenaiAnalyseStreaming:", err);
+
+                if (!res.headersSent) {                     // errore prima di partire
+                    return res.status(500).json({ error: "Assistant error", details: err.message });
+                }
+                // errore dopo l’avvio dello stream
+                res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+                res.write("data: [DONE]\n\n");
+                res.end();
             }
         }
         else if (service === "assistantOpenaiAnalyse") {
