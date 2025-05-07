@@ -185,7 +185,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             res.write("data: [DONE]\n\n");
             return res.end();
         }
-        else if (service === "openai-tts") {
+        /*else if (service === "openai-tts") {
             const apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
 
             if (!apiKey) {
@@ -247,7 +247,36 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                     return res.status(500).json({ error: "Unknown OpenAI TTS error" });
                 }
             }
-        } else if (service === "elevenlabs") {
+        }*/else if (service === "openai-tts") {
+            const { text, selectedVoice } = req.body;
+            if (!text) return res.status(400).json({ error: "Text is required" });
+
+            const allowedVoices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+            const voice = allowedVoices.includes((selectedVoice || "").trim().toLowerCase())
+                ? selectedVoice.trim().toLowerCase()
+                : "fable";
+
+            try {
+                // 1. chiama la SDK – niente Axios
+                const ttsResp = await openai.audio.speech.create({
+                    model: "gpt-4o-mini-tts",
+                    input: text,
+                    voice,
+                    instructions: "Speak in a gentle, slow and friendly way.",
+                    response_format: "mp3"          // oppure "wav"
+                });
+
+                // 2. inoltra lo stream al client
+                res.setHeader("Content-Type", "audio/mpeg");
+                res.setHeader("Transfer-Encoding", "chunked");
+                ttsResp.body.pipe(res);            // <‑‑‑ DONE
+
+            } catch (err) {
+                console.error("OpenAI TTS error:", err);
+                return res.status(500).json({ error: "OpenAI TTS failed" });
+            }
+        }
+        else if (service === "elevenlabs") {
             apiKey = process.env.ELEVENLAB_API_KEY;
 
             if (!apiKey) {
