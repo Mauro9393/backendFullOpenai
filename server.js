@@ -247,7 +247,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                     return res.status(500).json({ error: "Unknown OpenAI TTS error" });
                 }
             }
-        }else if (service === "streaming-openai-tts") {
+        } else if (service === "streaming-openai-tts") {
             const { text, selectedVoice } = req.body;
             if (!text) return res.status(400).json({ error: "Text is required" });
 
@@ -348,7 +348,41 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                     res.status(500).json({ error: "Unknown error with ElevenLabs" });
                 }
             }
-        } else if (service === "assistantOpenaiAnalyse") {
+        } else if (service === "assistantOpenaiAnalyseStreaming") {
+            const assistantId = process.env.OPENAI_ASSISTANTID;
+
+            try {
+                /* 1️⃣  riusa un thread se lo hai in sessione; qui lo creo sempre */
+                const thread = await openai.beta.threads.create({
+                    messages: req.body.messages        // messaggi iniziali
+                });
+
+                /* 2️⃣  lancio la run IN STREAM */
+                res.setHeader("Content-Type", "text/event-stream");
+                res.setHeader("Cache-Control", "no-cache");
+                res.flushHeaders();
+
+                const stream = await openai.beta.threads.runs.createAndStream(
+                    thread.id,
+                    { assistant_id: assistantId, stream: true }   // stream:true è fondamentale
+                );
+
+                /* 3️⃣  inoltro i delta al browser */
+                for await (const event of stream) {
+                    const delta = event.data?.delta?.content;
+                    if (delta) res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+                }
+
+                /* 4️⃣  chiudo lo SSE */
+                res.write("data: [DONE]\n\n");
+                return res.end();
+
+            } catch (err) {
+                console.error("assistantOpenaiAnalyse:", err);
+                return res.status(500).json({ error: "Assistant error", details: err.message });
+            }
+        }
+        else if (service === "assistantOpenaiAnalyse") {
             assistantId = process.env.OPENAI_ASSISTANTID;
             try {
                 // 1️⃣ crea un thread usa‑e‑getta
