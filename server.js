@@ -185,7 +185,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             res.write("data: [DONE]\n\n");
             return res.end();
         }
-        /*else if (service === "openai-tts") {
+        else if (service === "openai-tts") {
             const apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
 
             if (!apiKey) {
@@ -247,7 +247,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                     return res.status(500).json({ error: "Unknown OpenAI TTS error" });
                 }
             }
-        }*/else if (service === "openai-tts") {
+        }else if (service === "streaming-openai-tts") {
             const { text, selectedVoice } = req.body;
             if (!text) return res.status(400).json({ error: "Text is required" });
 
