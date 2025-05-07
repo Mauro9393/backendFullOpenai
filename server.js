@@ -1,3 +1,5 @@
+//https://backend-full-openai.vercel.app/api/streaming-openai-tts
+
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
@@ -488,7 +490,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             });
 
             return res.json(response.data);
-        } else if (service === "openaiAnalyse") {
+        }*/ else if (service === "azureOpenaiAnalyse") {
             const apiKey = process.env.AZURE_OPENAI_KEY_SIMULATEUR;
             const endpoint = process.env.AZURE_OPENAI_ENDPOINT_SIMULATEUR;
             const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_SIMULATEUR;
@@ -519,7 +521,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                     return res.status(500).json({ error: "Errore interno Azure Analyse" });
                 }
             }
-        }*/
+        }
         else {
             return res.status(400).json({ error: "Invalid service" });
         }
