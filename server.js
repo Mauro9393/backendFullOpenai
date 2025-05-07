@@ -261,7 +261,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             try {
                 // 1. chiama la SDK – niente Axios
                 const ttsResp = await openai.audio.speech.create({
-                    model: "tts-1-hd", //"tts-1-hd" "gpt-4o-mini-tts"
+                    model: "tts-1", //"tts-1-hd" "gpt-4o-mini-tts"
                     input: text,
                     voice,
                     instructions: "Speak in a cheerful and positive tone.",
