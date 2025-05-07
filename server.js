@@ -218,7 +218,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 model: "gpt-4o-mini-tts",
                 input: text,
                 voice: voice,
-                instructions: "Speak in a angry way."
+                instructions: "Speak in a gentle, slow and friendly way."
             };
 
             try {
