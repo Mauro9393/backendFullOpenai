@@ -215,7 +215,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             console.log("Using voice:", voice);
 
             const requestData = {
-                model: "tts-1",
+                model: "gpt-4o-mini-tts",
                 input: text,
                 voice: voice
             };
