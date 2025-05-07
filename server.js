@@ -492,7 +492,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             return res.json(response.data);
         }*/ else if (service === "azureOpenaiAnalyse") {
             const apiKey = process.env.AZURE_OPENAI_KEY_SIMULATEUR;
-            const endpoint = process.env.AZURE_OPENAI_ENDPOINT_COACH;
+            const endpoint = process.env.AZURE_OPENAI_ENDPOINT_SIMULATEUR;
             const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_COACH;
             const apiVersion = process.env.AZURE_OPENAI_API_VERSION_COACH;
 
