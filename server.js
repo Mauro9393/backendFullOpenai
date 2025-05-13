@@ -150,46 +150,50 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             });
 
             return;
-        } else if (service === "vertexChat") {
-            // Abilita CORS per questa rotta (opzionale se già configurato globalmente)
+        }
+        else if (service === "vertexChat") {
+            // CORS (se non già configurato globalmente)
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
             res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
             const { messages } = req.body;
-            // 1️⃣ Prepara l’array contents per Gemini
+
+            // 1️⃣ Prepara l’array contents per Gemini multimodale
             const contents = messages.map(m => ({
                 role: m.role,
                 parts: [{ text: m.content }]
             }));
 
             try {
-                // 2️⃣ Imposta gli header per lo streaming SSE
+                // 2️⃣ Imposta gli header SSE
                 res.setHeader("Content-Type", "text/event-stream");
                 res.setHeader("Cache-Control", "no-cache");
                 res.flushHeaders();
 
-                // 3️⃣ Chiama il modello in streaming passando { contents }
-                const streamingResp = await vertexModel.generateContentStream({ contents });
+                // 3️⃣ Chiedi lo streaming al modello (senza await)
+                const stream = vertexModel.generateContentStream({ contents });
 
-                // 4️⃣ Itera sui chunk restituiti
-                for await (const chunk of streamingResp.stream) {
+                // 4️⃣ Itéra direttamente su stream
+                for await (const chunk of stream) {
+                    // Ogni chunk ha candidates[0].parts[0].text
                     const delta = chunk.candidates?.[0]?.parts?.[0]?.text;
                     if (delta) {
                         res.write(`data: ${JSON.stringify({ delta })}\n\n`);
                     }
                 }
 
-                // 5️⃣ Fine del flusso
+                // 5️⃣ Chiudi lo stream SSE
                 res.write("data: [DONE]\n\n");
                 return res.end();
 
             } catch (err) {
                 console.error("Vertex AI error:", err);
                 if (!res.headersSent) {
+                    // Se l’errore arriva prima degli header SSE
                     return res.status(500).json({ error: "Vertex AI failed", details: err.message });
                 }
-                // se gli header SSE erano già inviati, chiudi semplicemente lo stream
+                // Se invece stavi già streammando, invia un SSE di errore e chiudi
                 res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
                 return res.end();
             }
