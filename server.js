@@ -295,29 +295,19 @@ app.post("/api/:service", upload.none(), async (req, res) => {
 
             // 3️⃣ Mappa friendly → Azure voice (aggiungi le tue se serve)
             const voiceMap = {
-                denise: "fr-FR-DeniseNeural",
-                henri: "fr-FR-HenriNeural",
-                vivienne: "fr-FR-VivienneMultilingualNeural",
-                remy: "fr-FR-RemyMultilingualNeural",
-                lucien: "fr-FR-LucienMultilingualNeural",
-                alain: "fr-FR-AlainNeural",
-                brigitte: "fr-FR-BrigitteNeural",
-                celeste: "fr-FR-CelesteNeural",
-                claude: "fr-FR-ClaudeNeural",
-                coralie: "fr-FR-CoralieNeural",
-                eloise: "fr-FR-EloiseNeural",
-                jacqueline: "fr-FR-JacquelineNeural",
-                jerome: "fr-FR-JeromeNeural",
-                josephine: "fr-FR-JosephineNeural",
-                maurice: "fr-FR-MauriceNeural",
-                yves: "fr-FR-YvesNeural",
-                yvette: "fr-FR-YvetteNeural"
+                alloy: "alloy",
+                echo: "echo",
+                fable: "fable",
+                onyx: "onyx",
+                nova: "nova",
+                shimmer: "shimmer"
             };
             const key = (selectedVoice || "").trim().toLowerCase();
-            const voice = voiceMap[key] || "fr-FR-HenriNeural";
+            const voice = voiceMap[key] || "fable";
 
             // 4️⃣ Corpo JSON
             const body = {
+                model: "tts-1",
                 input: text,
                 voice,
             };
