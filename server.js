@@ -159,11 +159,10 @@ app.post("/api/:service", upload.none(), async (req, res) => {
 
             const { messages } = req.body;
 
-            // 1️⃣ Prepara contents per Gemini multimodale
-            const contents = messages.map(m => ({
-                role: m.role,
-                parts: [{ text: m.content }]
-            }));
+            // 1️⃣ Combina i tuoi messages in un solo prompt di testo
+            const promptText = messages
+                .map(m => `${m.role.toUpperCase()}: ${m.content}`)
+                .join("\n");
 
             try {
                 // 2️⃣ Header SSE
@@ -171,18 +170,20 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 res.setHeader("Cache-Control", "no-cache");
                 res.flushHeaders();
 
-                // 3️⃣ Richiesta streaming (attendi la risposta iniziale)
-                const streamingResp = await vertexModel.generateContentStream({ contents });
+                // 3️⃣ Usa generateTextStream per il modello Gemini (solo testo)
+                const textStream = await vertexModel.generateTextStream({
+                    text: promptText
+                });
 
-                // 4️⃣ Itera sui chunk via streamingResp.stream
-                for await (const chunk of streamingResp.stream) {
-                    const delta = chunk.candidates?.[0]?.parts?.[0]?.text;
+                // 4️⃣ Itera sui chunk
+                for await (const chunk of textStream) {
+                    const delta = chunk.text;      // chunk.text contiene il pezzo generato
                     if (delta) {
                         res.write(`data: ${JSON.stringify({ delta })}\n\n`);
                     }
                 }
 
-                // 5️⃣ Chiudi correttamente
+                // 5️⃣ Fine dello stream
                 res.write("data: [DONE]\n\n");
                 return res.end();
 
@@ -191,7 +192,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 if (!res.headersSent) {
                     return res.status(500).json({ error: "Vertex AI failed", details: err.message });
                 }
-                // se eravamo in SSE, invia un evento errore
+                // se siamo già in SSE, chiudi con evento errore
                 res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
                 return res.end();
             }
