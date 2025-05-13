@@ -320,8 +320,6 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             const body = {
                 input: text,
                 voice,
-                // opzionale: instructions, format…
-                response_format: "audio/mpeg"
             };
 
             try {
