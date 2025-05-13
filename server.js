@@ -15,9 +15,31 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+const fs = require("fs");
+const path = require("path");
+const { VertexAI } = require("@google-cloud/vertexai");
+
+// scrivi la chiave JSON in /tmp e punta lì
+const saKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+const keyPath = path.join("/tmp", "sa-key.json");
+fs.writeFileSync(keyPath, saKey);
+process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
+
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY_SIMULATEUR
 });
+
+
+const vertexAI = new VertexAI({
+    project: process.env.GCLOUD_PROJECT,
+    location: process.env.VERTEX_LOCATION
+});
+const vertexModel = vertexAI.getGenerativeModel({
+    model: process.env.VERTEX_MODEL_ID,
+    generationConfig: { maxOutputTokens: 512 }
+});
+
 
 // Timeout for OpenAI on Vercel waiting for the response from OpenAI
 const API_TIMEOUT = 320000; // 5 min
@@ -124,6 +146,30 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             });
 
             return;
+        } else if (service === "vertexChat") {
+            // SSE headers
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache");
+            res.flushHeaders();
+
+            const { messages } = req.body;
+            const contents = messages.map(m => ({
+                role: m.role,
+                parts: [{ text: m.content }]
+            }));
+
+            try {
+                const stream = await vertexModel.generateContentStream({ contents });
+                for await (const chunk of stream.stream) {
+                    const text = chunk.candidates[0]?.parts[0]?.text;
+                    if (text) res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
+                }
+                res.write("data: [DONE]\n\n");
+                return res.end();
+            } catch (err) {
+                console.error("Vertex AI error:", err);
+                return res.status(500).json({ error: "Vertex AI failed", details: err.message });
+            }
         }
         /*else if (service === "openaiSimulateur") {
             apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
