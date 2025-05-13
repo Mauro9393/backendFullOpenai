@@ -166,10 +166,14 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 res.setHeader("Cache-Control", "no-cache");
                 res.flushHeaders();
 
+                // Récupère directement l'async iterable
                 const stream = await vertexModel.generateContentStream(promptText);
-                for await (const chunk of stream.stream) {
-                    const text = chunk.candidates[0]?.parts[0]?.text;
-                    if (text) res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
+                for await (const chunk of stream) {
+                    // Gemini renvoie chunk.text
+                    const text = chunk.text;
+                    if (text) {
+                        res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
+                    }
                 }
                 res.write("data: [DONE]\n\n");
                 return res.end();
