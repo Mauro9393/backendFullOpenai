@@ -278,6 +278,76 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 return res.status(500).json({ error: "OpenAI TTS failed" });
             }
         }
+        else if (service === "azureTextToSpeech") {
+            const { text, selectedVoice } = req.body;
+            if (!text) {
+                return res.status(400).json({ error: "Text is required" });
+            }
+
+            // 1️⃣ Parametre de .env
+            const endpoint = process.env.AZURE_TTS_ENDPOINT;
+            const apiKey = process.env.AZURE_TTS_KEY;
+            const deployment = "tts";                          // model name
+            const apiVersion = "2025-03-01-preview";
+
+            // 2️⃣ URL 
+            const url = `${endpoint}/openai/deployments/${deployment}/audio/speech?api-version=${apiVersion}`;
+
+            // 3️⃣ Mappa friendly → Azure voice (aggiungi le tue se serve)
+            const voiceMap = {
+                denise: "fr-FR-DeniseNeural",
+                henri: "fr-FR-HenriNeural",
+                vivienne: "fr-FR-VivienneMultilingualNeural",
+                remy: "fr-FR-RemyMultilingualNeural",
+                lucien: "fr-FR-LucienMultilingualNeural",
+                alain: "fr-FR-AlainNeural",
+                brigitte: "fr-FR-BrigitteNeural",
+                celeste: "fr-FR-CelesteNeural",
+                claude: "fr-FR-ClaudeNeural",
+                coralie: "fr-FR-CoralieNeural",
+                eloise: "fr-FR-EloiseNeural",
+                jacqueline: "fr-FR-JacquelineNeural",
+                jerome: "fr-FR-JeromeNeural",
+                josephine: "fr-FR-JosephineNeural",
+                maurice: "fr-FR-MauriceNeural",
+                yves: "fr-FR-YvesNeural",
+                yvette: "fr-FR-YvetteNeural"
+            };
+            const key = (selectedVoice || "").trim().toLowerCase();
+            const voice = voiceMap[key] || "fr-FR-HenriNeural";
+
+            // 4️⃣ Corpo JSON
+            const body = {
+                input: text,
+                voice,
+                // opzionale: instructions, format…
+                response_format: "audio/mpeg"
+            };
+
+            try {
+                const response = await axios.post(
+                    url,
+                    body,
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "api-key": apiKey,
+                            "Accept": "audio/mpeg"
+                        },
+                        responseType: "arraybuffer"
+                    }
+                );
+
+                // 5️⃣ Rispondi con il blob audio
+                res.setHeader("Content-Type", "audio/mpeg");
+                return res.send(response.data);
+
+            } catch (err) {
+                console.error("Azure TTS error:", err.response?.data || err.message);
+                return res.status(err.response?.status || 500)
+                    .json({ error: "Azure TTS failed", details: err.message });
+            }
+        }
         else if (service === "elevenlabs") {
             apiKey = process.env.ELEVENLAB_API_KEY;
 
@@ -490,7 +560,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             });
 
             return res.json(response.data);
-        }*/ else if (service === "azureOpenaiAnalyse") {
+        }*/else if (service === "azureOpenaiAnalyse") {
             const apiKey = process.env.AZURE_OPENAI_KEY_SIMULATEUR;
             const endpoint = process.env.AZURE_OPENAI_ENDPOINT_SIMULATEUR;
             const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_COACH;
@@ -508,7 +578,6 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                         "Content-Type": "application/json"
                     }
                 });
-
                 return res.json(response.data);
             } catch (error) {
                 console.error("❌ Azure Analyse Error:");
