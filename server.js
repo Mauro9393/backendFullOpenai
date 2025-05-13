@@ -309,8 +309,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             const body = {
                 model: "tts-1",
                 input: text,
-                voice,
-                instructions: instructions || "Speak in a cheerful and gentle tone."
+                voice
             };
 
             try {
