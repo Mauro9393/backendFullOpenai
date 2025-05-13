@@ -152,48 +152,61 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             return;
         }
         else if (service === "vertexChat") {
-            // CORS (se non già fatto globalmente)
+            // 1️⃣ Abilitiamo CORS (se non già fatto globalmente)
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
             res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
+            // 2️⃣ Ricaviamo i messaggi dal body
             const { messages } = req.body;
-
-            // 1️⃣ Combina i tuoi messages in un solo prompt di testo
+            // Combiniamo in un prompt di testo
             const promptText = messages
                 .map(m => `${m.role.toUpperCase()}: ${m.content}`)
                 .join("\n");
 
+            // 3️⃣ Costruiamo la request per Vertex AI
+            const request = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            { text: promptText }
+                        ]
+                    }
+                ]
+            };
+
             try {
-                // 2️⃣ Header SSE
+                // 4️⃣ Impostiamo gli header SSE
                 res.setHeader("Content-Type", "text/event-stream");
                 res.setHeader("Cache-Control", "no-cache");
                 res.flushHeaders();
 
-                // 3️⃣ Usa generateTextStream per il modello Gemini (solo testo)
-                const textStream = await vertexModel.generateTextStream({
-                    text: promptText
-                });
+                // 5️⃣ Lanciamo lo streaming
+                const result = await vertexModel.generateContentStream(request);
 
-                // 4️⃣ Itera sui chunk
-                for await (const chunk of textStream) {
-                    const delta = chunk.text;      // chunk.text contiene il pezzo generato
+                // 6️⃣ Iteriamo sui chunk restituiti
+                for await (const item of result.stream) {
+                    // il testo è in item.candidates[0].content.parts[0].text
+                    const delta = item.candidates?.[0]?.content?.parts?.[0]?.text;
                     if (delta) {
                         res.write(`data: ${JSON.stringify({ delta })}\n\n`);
                     }
                 }
 
-                // 5️⃣ Fine dello stream
+                // 7️⃣ Fine dello stream
                 res.write("data: [DONE]\n\n");
                 return res.end();
 
             } catch (err) {
                 console.error("Vertex AI error:", err);
+                // Se non abbiamo ancora inviato header, rispondiamo con JSON
                 if (!res.headersSent) {
                     return res.status(500).json({ error: "Vertex AI failed", details: err.message });
                 }
-                // se siamo già in SSE, chiudi con evento errore
+                // altrimenti chiudiamo lo stream con un evento di errore
                 res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+                res.write("data: [DONE]\n\n");
                 return res.end();
             }
         }
