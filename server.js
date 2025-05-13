@@ -147,11 +147,6 @@ app.post("/api/:service", upload.none(), async (req, res) => {
 
             return;
         } else if (service === "vertexChat") {
-            // SSE headers
-            res.setHeader("Content-Type", "text/event-stream");
-            res.setHeader("Cache-Control", "no-cache");
-            res.flushHeaders();
-
             const { messages } = req.body;
             const contents = messages.map(m => ({
                 role: m.role,
@@ -159,6 +154,11 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             }));
 
             try {
+                // SSE headers
+                res.setHeader("Content-Type", "text/event-stream");
+                res.setHeader("Cache-Control", "no-cache");
+                res.flushHeaders();
+
                 const stream = await vertexModel.generateContentStream({ contents });
                 for await (const chunk of stream.stream) {
                     const text = chunk.candidates[0]?.parts[0]?.text;
