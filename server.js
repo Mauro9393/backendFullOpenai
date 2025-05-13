@@ -12,7 +12,11 @@ const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
+}));
 app.use(express.json());
 
 const fs = require("fs");
@@ -147,6 +151,10 @@ app.post("/api/:service", upload.none(), async (req, res) => {
 
             return;
         } else if (service === "vertexChat") {
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+            res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
             const { messages } = req.body;
             const contents = messages.map(m => ({
                 role: m.role,
