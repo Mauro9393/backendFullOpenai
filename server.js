@@ -156,10 +156,9 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
             const { messages } = req.body;
-            const contents = messages.map(m => ({
-                role: m.role,
-                parts: [{ text: m.content }]
-            }));
+            const promptText = messages
+                .map(m => `${m.role.toUpperCase()}: ${m.content}`)
+                .join("\n");
 
             try {
                 // SSE headers
@@ -167,7 +166,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 res.setHeader("Cache-Control", "no-cache");
                 res.flushHeaders();
 
-                const stream = await vertexModel.generateContentStream({ contents });
+                const stream = await vertexModel.generateContentStream(promptText);
                 for await (const chunk of stream.stream) {
                     const text = chunk.candidates[0]?.parts[0]?.text;
                     if (text) res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
