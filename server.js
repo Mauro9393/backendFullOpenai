@@ -167,7 +167,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 res.flushHeaders();
 
                 // Récupère directement l'async iterable
-                const stream = await vertexModel.generateContentStream(promptText);
+                const stream = vertexModel.generateContentStream(promptText);
                 for await (const chunk of stream) {
                     // Gemini renvoie chunk.text
                     const text = chunk.text;
