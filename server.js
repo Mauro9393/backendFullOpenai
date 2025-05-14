@@ -152,64 +152,62 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             return;
         }
         else if (service === "vertexChat") {
-            // 1️⃣ Abilitiamo CORS (se non già fatto globalmente)
+            // 1️⃣ CORS
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
             res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-            // 2️⃣ Ricaviamo i messaggi dal body
-            const { messages } = req.body;
-            // Combiniamo in un prompt di testo
-            const promptText = messages
-                .map(m => `${m.content}`)
-                .join("\n");
+            // 2️⃣ Prendo messages e stream flag dal body
+            const { messages, stream = true } = req.body;
 
-            // 3️⃣ Costruiamo la request per Vertex AI
+            // 3️⃣ Costruisco il prompt
+            const promptText = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n");
             const request = {
-                contents: [
-                    {
-                        role: "user",
-                        parts: [
-                            { text: promptText }
-                        ]
-                    }
-                ]
+                contents: [{ role: "user", parts: [{ text: promptText }] }]
             };
 
+            // 4️⃣ Se è batch (stream=false) uso generate()
+            if (stream === false) {
+                try {
+                    const result = await vertexModel.generate(request);
+                    // Il testo completo si trova nel primo candidato
+                    const text =
+                        result.candidates?.[0]?.content?.parts?.[0]?.text
+                        || "";
+                    return res.json({ text });
+                } catch (err) {
+                    console.error("Vertex AI batch error:", err);
+                    return res.status(500).json({ error: err.message });
+                }
+            }
+
+            // 5️⃣ Altrimenti STREAMING come prima
             try {
-                // 4️⃣ Impostiamo gli header SSE
                 res.setHeader("Content-Type", "text/event-stream");
                 res.setHeader("Cache-Control", "no-cache");
                 res.flushHeaders();
 
-                // 5️⃣ Lanciamo lo streaming
                 const result = await vertexModel.generateContentStream(request);
-
-                // 6️⃣ Iteriamo sui chunk restituiti
                 for await (const item of result.stream) {
-                    // il testo è in item.candidates[0].content.parts[0].text
                     const delta = item.candidates?.[0]?.content?.parts?.[0]?.text;
                     if (delta) {
                         res.write(`data: ${JSON.stringify({ delta })}\n\n`);
                     }
                 }
-
-                // 7️⃣ Fine dello stream
                 res.write("data: [DONE]\n\n");
                 return res.end();
 
             } catch (err) {
-                console.error("Vertex AI error:", err);
-                // Se non abbiamo ancora inviato header, rispondiamo con JSON
+                console.error("Vertex AI streaming error:", err);
                 if (!res.headersSent) {
-                    return res.status(500).json({ error: "Vertex AI failed", details: err.message });
+                    return res.status(500).json({ error: err.message });
                 }
-                // altrimenti chiudiamo lo stream con un evento di errore
                 res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
                 res.write("data: [DONE]\n\n");
                 return res.end();
             }
         }
+
         /*else if (service === "openaiSimulateur") {
             apiKey = process.env.OPENAI_API_KEY_SIMULATEUR;
             apiUrl = "https://api.openai.com/v1/chat/completions";
@@ -361,7 +359,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             } catch (err) {
                 console.error("OpenAI TTS error:", err);
                 return res.status(500).json({ error: "OpenAI TTS failed" });
-            } 
+            }
         }
         else if (service === "azureTextToSpeech") {
             const { text, selectedVoice } = req.body;
