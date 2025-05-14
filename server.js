@@ -161,7 +161,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             const { messages } = req.body;
             // Combiniamo in un prompt di testo
             const promptText = messages
-                .map(m => `${m.role.toUpperCase()}: ${m.content}`)
+                .map(m => `${m.content}`)
                 .join("\n");
 
             // 3️⃣ Costruiamo la request per Vertex AI
