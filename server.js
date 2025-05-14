@@ -169,10 +169,10 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             // 4️⃣ Se è batch (stream=false) uso generate()
             if (stream === false) {
                 try {
-                    const result = await vertexModel.generate(request);
-                    // Il testo completo si trova nel primo candidato
+                    const result = await vertexModel.generateContent(request);
+                    const response = result.response;
                     const text =
-                        result.candidates?.[0]?.content?.parts?.[0]?.text
+                        response?.candidates?.[0]?.content?.parts?.[0]?.text
                         || "";
                     return res.json({ text });
                 } catch (err) {
