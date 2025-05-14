@@ -41,7 +41,7 @@ const vertexAI = new VertexAI({
 });
 const vertexModel = vertexAI.getGenerativeModel({
     model: process.env.VERTEX_MODEL_ID,
-    generationConfig: { maxOutputTokens: 2048 }
+    generationConfig: { maxOutputTokens: 5048 }
 });
 
 
