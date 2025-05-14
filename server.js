@@ -361,7 +361,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             } catch (err) {
                 console.error("OpenAI TTS error:", err);
                 return res.status(500).json({ error: "OpenAI TTS failed" });
-            }
+            } 
         }
         else if (service === "azureTextToSpeech") {
             const { text, selectedVoice } = req.body;
