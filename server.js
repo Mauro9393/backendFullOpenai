@@ -40,30 +40,40 @@ const vertexModel = vertexAI.getGenerativeModel({
 const API_TIMEOUT = 320000; // 5 minutes
 const axiosInstance = axios.create({ timeout: API_TIMEOUT });
 
-// Rispondi sempre ai preflight OPTIONS
-app.options("*", (req, res) => {
-  res
-    .header("Access-Control-Allow-Origin", "*")
-    .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-    .header("Access-Control-Allow-Headers", "Content-Type")
-    .status(200)
-    .end();
-});
-
-// Poi il tuo CORS “globale” classico
+// Global middlewares
 app.use(cors({
-  origin: "*",
-  methods: ["GET","POST","OPTIONS"],
-  allowedHeaders: ["Content-Type"]
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
 }));
 app.use(express.json());
+
+
+
 
 const pool = new Pool({
   connectionString: process.env.PG_CONNECTION,
   ssl: { rejectUnauthorized: false }
 });
 
-module.exports = pool;
+// 1) Preflight solo per userList
+app.options("/api/userList", cors());
+app.post("/api/userList", cors(), async (req, res) => {
+  const { clientName, userID, userName, userScore } = req.body;
+  try {
+    const result = await pool.query(
+      `INSERT INTO userList
+         (clientName, userID, name, score)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [clientName, userID, userName, userScore]
+    );
+    res.status(201).json({ message: "Utente inserito!", data: result.rows[0] });
+  } catch (err) {
+    console.error("❌ Errore inserimento userList:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // SSE helper for OpenAI Threads
 async function streamAssistant(assistantId, messages, userId, res) {
@@ -347,20 +357,6 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             } catch (err) {
                 console.error("Azure TTS error:", err.response?.data || err.message);
                 return res.status(err.response?.status || 500).json({ error: "Azure TTS failed", details: err.message });
-            }
-        }
-        else if (service === "userList") {
-            const { clientName, userID, userName, userScore } = req.body;
-            try {
-                const result = await pool.query(
-                    "INSERT INTO userList (clientName, userID, name, score) VALUES ($1, $2, $3, $4) RETURNING *",
-                    [clientName, userID, userName, userScore]
-                );
-                return res.status(201).json({ message: "Utente inserito!", data: result.rows[0] });
-            } catch (err) {
-                console.error("❌ Errore inserimento userList:", err);
-                // manda il messaggio d’errore al client per debug
-                res.status(500).json({ error: err.message });
             }
         }
         // ElevenLabs TTS
