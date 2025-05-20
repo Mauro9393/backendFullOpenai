@@ -350,8 +350,9 @@ app.post("/api/:service", upload.none(), async (req, res) => {
                 );
                 return res.status(201).json({ message: "Utente inserito!", data: result.rows[0] });
             } catch (err) {
-                console.error("Errore inserimento userList:", err);
-                return res.status(500).json({ error: "Errore durante l'inserimento" });
+                console.error("❌ Errore inserimento userList:", err);
+                // manda il messaggio d’errore al client per debug
+                res.status(500).json({ error: err.message });
             }
         }
         // ElevenLabs TTS
