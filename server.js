@@ -49,13 +49,11 @@ app.use(cors({
 app.use(express.json());
 
 const pool = new Pool({
-    user: process.env.PGUSER,           // esempio: "postgres"
-    host: process.env.PGHOST,           // esempio: "localhost" o IP del DB
-    database: process.env.PGDATABASE,   // esempio: "b_learn_db"
-    password: process.env.PGPASSWORD,   // la tua password
-    port: process.env.PGPORT,           // esempio: 5432
-    ssl: process.env.PGSSLMODE === "require" ? { rejectUnauthorized: false } : false
+  connectionString: process.env.PG_CONNECTION,
+  ssl: { rejectUnauthorized: false }
 });
+
+module.exports = pool;
 
 // SSE helper for OpenAI Threads
 async function streamAssistant(assistantId, messages, userId, res) {
