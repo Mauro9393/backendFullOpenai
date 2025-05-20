@@ -40,11 +40,21 @@ const vertexModel = vertexAI.getGenerativeModel({
 const API_TIMEOUT = 320000; // 5 minutes
 const axiosInstance = axios.create({ timeout: API_TIMEOUT });
 
-// Global middlewares
+// Rispondi sempre ai preflight OPTIONS
+app.options("*", (req, res) => {
+  res
+    .header("Access-Control-Allow-Origin", "*")
+    .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+    .header("Access-Control-Allow-Headers", "Content-Type")
+    .status(200)
+    .end();
+});
+
+// Poi il tuo CORS “globale” classico
 app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"]
+  origin: "*",
+  methods: ["GET","POST","OPTIONS"],
+  allowedHeaders: ["Content-Type"]
 }));
 app.use(express.json());
 
