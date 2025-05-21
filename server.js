@@ -342,7 +342,7 @@ app.post("/api/:service", upload.none(), async (req, res) => {
             const { clientName, userID, userName, userScore, historique, rapport } = req.body;
             try {
                 const result = await pool.query(
-                    "INSERT INTO userlist (client_name, user_id, name, score, historique, rapport) VALUES ($1, $2, $3, $4, $5; $6) RETURNING *",
+                    "INSERT INTO userlist (client_name, user_id, name, score, historique, rapport) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
                     [clientName, userID, userName, userScore, historique, rapport]
                 );
                 return res
